@@ -2,8 +2,9 @@
 #Made by Akash Samanta
 #Version 2.8.8
 
+import platform
 import asyncio, _thread, os, time, webbrowser, re, subprocess, keyboard, threading, pygame
-from moviepy.editor import VideoFileClip
+from moviepy import VideoFileClip
 from bleak import BleakClient
 from PIL import Image
 from customtkinter import * # type: ignore
@@ -16,7 +17,10 @@ from lightcraft_cli import repeat, enableRepeat, disableRepeat
 from mutagen.mp3 import MP3
 
 root = CTk()
-address = "32:06:C2:00:0A:9E"
+if os.name == 'posix':
+    default_address = "EC4A4BDB-FC15-8CC5-FAB1-9EB6181DE9A5"
+else:
+    default_address = "32:06:C2:00:0A:9E"
 char_uuid = "FFD9"
 isConnected = False
 isOn = False
@@ -451,7 +455,13 @@ def main():
     def macInputSave():
         global settings, address
         address = macInputVar.get()
-        if validate_mac_address(macInputVar.get()):
+        if os.name == 'posix' and platform.system() == 'Darwin':
+            settings[2] = macInputVar.get() + "\n"
+            writesettings()
+            recreate_controller()
+            macInputButton.configure(state="disabled", text="Saved", fg_color="green")
+            macInputButton.after(1000, lambda: macInputButton.configure(state="normal", text="Save", fg_color="#1f6aa5"))
+        elif validate_mac_address(macInputVar.get()):
             settings[2] = macInputVar.get() + "\n"
             writesettings()
             recreate_controller()
@@ -527,8 +537,12 @@ def main():
         config_dir = os.path.join(os.getcwd(), "Configurations")
         if not os.path.exists(config_dir):
             os.makedirs(config_dir)
-        os.startfile(config_dir)
-    
+        if os.name == 'nt':
+            os.startfile(config_dir)
+        elif os.name == 'posix':
+            subprocess.Popen(['open', config_dir])
+        else:
+            messagebox.showerror("Unsupported OS", "This feature is not supported on your operating system.")    
     def updateDefaultColour(value):
         global defaultColour
         defaultColour = defaultColourVar.get().lower()
@@ -542,9 +556,14 @@ def main():
     
     def openSettings():
         if os.path.exists("Settings.txt"):
-            subprocess.Popen(["Settings.txt"], shell=True)
+            if os.name == 'nt':
+                subprocess.Popen(["Settings.txt"], shell=True)
+            elif os.name == 'posix':
+                subprocess.Popen(['open', 'Settings.txt'])
+            else:
+                messagebox.showerror("Unsupported OS", "This feature is not supported on your operating system.")
         else:
-            messagebox.showerror("Unable to Load Configuration","The settings file seems to be missing. LightCraft will attempt to restore default settings.")  
+            messagebox.showerror("Unable to Load Configuration", "The settings file seems to be missing. LightCraft will attempt to restore default settings.")
 
     #Alert Functions
     def playAlert():
@@ -556,19 +575,19 @@ def main():
         pulseflash_var.set("red_pulse")
         match alert:
             case 0:
-                pygame.mixer.music.load(r".\Resources\italyAlert.mp3")
+                pygame.mixer.music.load(r"./Resources/italyAlert.mp3")
                 loop_thread1 = threading.Thread(target=lambda: asyncio.run(repeat(controller.client, char_uuid, '["0.3 red","0.3 pink"]', 100)))
                 loop_thread1.start()
             case 1:
-                pygame.mixer.music.load(r".\Resources\japanAlert.mp3")
+                pygame.mixer.music.load(r"./Resources/japanAlert.mp3")
                 interval = 0
                 sendPulse()
             case 2:
-                pygame.mixer.music.load(r".\Resources\franceAlert.mp3")
+                pygame.mixer.music.load(r"./Resources/franceAlert.mp3")
                 interval = 1
                 sendPulse()
             case 3:
-                pygame.mixer.music.load(r".\Resources\usaAlert.mp3")
+                pygame.mixer.music.load(r"./Resources/usaAlert.mp3")
                 interval = 6
                 sendPulse()
         intervalSlider.set(10-interval)
@@ -1261,7 +1280,7 @@ def main():
         except PermissionError:
             messagebox.showerror("Administrator Privileges Needed","Because of the nature of this LightCraft install, you will need to launch as administrator. To prevent this behaviour, please install LightCraft again on a user directory.")
             quit()
-        f.write("LightCraft Settings - Any corruption may lead to configuration loss\nMade by Akash Samanta\n32:06:C2:00:0A:9E\nFFD9\n0\n1\n1\n#FFFFFF\n#FFFFFF\n#FFFFFF\n#FFFFFF\n#FFFFFF\nSave\n5\n1\nRed\n\nCustom Operation Codes\nEdit the following values which correspond to the data packet being sent to the LED. Useful for different LED Models. NO SPACES. Must end with comma.\n\nFlash\ntrailing,bb,\nrgb_flash,62,\nall_flash,38,\nwhite_flash,37,\npurple_flash,36,\ncyan_flash,35,\nyellow_flash,34,\nblue_flash,33,\ngreen_flash,32,\nred_flash,31,\neyesore_flash,30,\nleading,44,\n\nPulse\ntrailing,BB,\ngb_pulse,2F,\nrb_pulse,2E,\nrg_pulse,2D,\nwhite_pulse,2C,\npurple_pulse,2B,\ncyan_pulse,2A,\nyellow_pulse,29,\nblue_pulse,28,\ngreen_pulse,27,\nred_pulse,26,\nrgb_pulse,61,\nall_pulse,25,\ntrailing,44,\n\nOn\ntrailing_code,CC,\nmain,23,\nleading,33,\n\nOff\ntrailing_code,CC,\nmain,24,\nleading,33,\n\nSingle\ntrailing,56,\norder,r,g,b,\nleading,00,F0,AA,\n")
+        f.write(f"LightCraft Settings - Any corruption may lead to configuration loss\nMade by Akash Samanta\n{default_address}\nFFD9\n0\n1\n1\n#FFFFFF\n#FFFFFF\n#FFFFFF\n#FFFFFF\n#FFFFFF\nSave\n5\n1\nRed\n\nCustom Operation Codes\nEdit the following values which correspond to the data packet being sent to the LED. Useful for different LED Models. NO SPACES. Must end with comma.\n\nFlash\ntrailing,bb,\nrgb_flash,62,\nall_flash,38,\nwhite_flash,37,\npurple_flash,36,\ncyan_flash,35,\nyellow_flash,34,\nblue_flash,33,\ngreen_flash,32,\nred_flash,31,\neyesore_flash,30,\nleading,44,\n\nPulse\ntrailing,BB,\ngb_pulse,2F,\nrb_pulse,2E,\nrg_pulse,2D,\nwhite_pulse,2C,\npurple_pulse,2B,\ncyan_pulse,2A,\nyellow_pulse,29,\nblue_pulse,28,\ngreen_pulse,27,\nred_pulse,26,\nrgb_pulse,61,\nall_pulse,25,\ntrailing,44,\n\nOn\ntrailing_code,CC,\nmain,23,\nleading,33,\n\nOff\ntrailing_code,CC,\nmain,24,\nleading,33,\n\nSingle\ntrailing,56,\norder,r,g,b,\nleading,00,F0,AA,\n")
         f.close()
 
     #Quit or Relaunch Application
@@ -1293,7 +1312,7 @@ def main():
             autoCSwitch.deselect()
             keyBindSwitch.select()
             loadedSwitch.select()
-            macInputVar.set("32:06:C2:00:0A:9E")
+            macInputVar.set(default_address)
             uuidInputVar.set("FFD9")
             customColour1.configure(fg_color="#FFFFFF")
             customColour2.configure(fg_color="#FFFFFF")
@@ -1396,7 +1415,7 @@ def main():
     #Making the Application
     root.title("LightCraft")
     root.protocol("WM_DELETE_WINDOW", destroyer)
-    root.iconbitmap(r".\Resources\logo2.ico")
+    root.iconbitmap(r"./Resources/logo2.ico")
     applysettings()
     userwinx = root.winfo_screenwidth()
     userwiny = root.winfo_screenheight()
@@ -1433,28 +1452,28 @@ def main():
 
     #Images
     try:
-        image1 = Image.open(r".\Resources\logo.png")
-        image2 = Image.open(r".\Resources\onButton.png")
-        image3 = Image.open(r".\Resources\offButton.png")
-        image4 = Image.open(r".\Resources\pulseHint.png")
-        image5 = Image.open(r".\Resources\flashHint.png")
-        image6 = Image.open(r".\Resources\italy.png")
-        image7 = Image.open(r".\Resources\japan.png")
-        image8 = Image.open(r".\Resources\france.png")
-        image9 = Image.open(r".\Resources\usa.png")
-        image11 = Image.open(r".\Resources\play.png")
-        image12 = Image.open(r".\Resources\pause.png")
-        image13 = Image.open(r".\Resources\stop.png")
-        image14 = Image.open(r".\Resources\link.png")
-        image16 = Image.open(r".\Resources\add.png")
-        image17 = Image.open(r".\Resources\folder.png")
-        image18 = Image.open(r".\Resources\save.png")
-        image15 = Image.open(r".\Resources\saveSuccess.png")
-        image19 = Image.open(r".\Resources\delete.png")
-        image20 = Image.open(r".\Resources\copy.png")
-        image21 = Image.open(r".\Resources\saveFail.png")
-        image22 = Image.open(r".\Resources\bluetooth.png")
-        image23 = Image.open(r".\Resources\deleteNo.png")
+        image1 = Image.open(r"./Resources/logo.png")
+        image2 = Image.open(r"./Resources/onButton.png")
+        image3 = Image.open(r"./Resources/offButton.png")
+        image4 = Image.open(r"./Resources/pulseHint.png")
+        image5 = Image.open(r"./Resources/flashHint.png")
+        image6 = Image.open(r"./Resources/italy.png")
+        image7 = Image.open(r"./Resources/japan.png")
+        image8 = Image.open(r"./Resources/france.png")
+        image9 = Image.open(r"./Resources/usa.png")
+        image11 = Image.open(r"./Resources/play.png")
+        image12 = Image.open(r"./Resources/pause.png")
+        image13 = Image.open(r"./Resources/stop.png")
+        image14 = Image.open(r"./Resources/link.png")
+        image16 = Image.open(r"./Resources/add.png")
+        image17 = Image.open(r"./Resources/folder.png")
+        image18 = Image.open(r"./Resources/save.png")
+        image15 = Image.open(r"./Resources/saveSuccess.png")
+        image19 = Image.open(r"./Resources/delete.png")
+        image20 = Image.open(r"./Resources/copy.png")
+        image21 = Image.open(r"./Resources/saveFail.png")
+        image22 = Image.open(r"./Resources/bluetooth.png")
+        image23 = Image.open(r"./Resources/deleteNo.png")
     except:
         tk.messagebox.showerror("Missing Resources","LightCraft could not find critical resources. The Resources folder may have been corrupted or deleted. Please re-install LightCraft from official sources.") # type: ignore #Missing Resources
         quit()
